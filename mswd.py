@@ -16,7 +16,11 @@ db_file_name = "ddv.db"
 # 设置进行关联的字段
 # 指定关联的key
 # 建议设置可以表示用户唯一性的字段
-links = ['name','idCard','phone','身份证','姓名','手机号','电话']
+# links = ['name','idCard','phone','身份证','姓名','手机号','电话']
+links = []
+
+
+
 
 
 def init_db():
@@ -26,13 +30,41 @@ def init_db():
         conn = sqlite3.connect(db_file_name)
         cursor = conn.cursor()
 
-        # 创建数据表
         sql = "CREATE table if not exists mswd(id integer PRIMARY KEY autoincrement,name varchar(256), val varchar(256), uuid varchar(32), create_time integer ,project varchar(256),other_project varchar(2560) DEFAULT 'ddv')"
         cursor.execute(sql)
-            
+        cursor.execute("CREATE INDEX mswd_index_name ON mswd (name);")
+        cursor.execute("CREATE INDEX mswd_index_val ON mswd (val);")
+        cursor.execute("CREATE INDEX mswd_index_uuid ON mswd (uuid);")
+        cursor.execute("CREATE INDEX mswd_index_create_time ON mswd (create_time);")
+        cursor.execute("CREATE INDEX mswd_index_project ON mswd (project);")
+        cursor.execute("CREATE INDEX mswd_index_other_project ON mswd (other_project);")
+        cursor.execute("CREATE INDEX mswd_index_uuid_val ON mswd (uuid,val);")
+        cursor.execute("CREATE INDEX mswd_index_uuid_val_project ON mswd (uuid,val,project);")
+        cursor.execute("CREATE INDEX mswd_index_uuid_val_other_project ON mswd (uuid,val,other_project);")
+        cursor.execute("CREATE INDEX mswd_index_uuid_name_other_project ON mswd (uuid,name,other_project);")
+
         conn.commit()
         conn.close()
 
+
+# 判断关联的数据是否已经存在
+def check_data_link_if_exists(cells):
+    # 获取所有的val值
+    # 值获取需要进行关联的name的val
+    # print(links)
+    # valls = list(map(lambda x: x['val'], filter(lambda y: y['name'] in links, cells)))
+    valls = list(map( lambda x: x['val'], cells ))
+    conn = sqlite3.connect(db_file_name)
+    cursor = conn.cursor()
+    values = cursor.execute('select val,uuid,name from mswd where val in ( %s )' % (','.join(['?'] * len(valls)  ) ),(tuple(valls))  )
+    values = list(map(lambda x:{
+        'val':x[0],
+        'uuid':x[1],
+        'link':True if x[2] in links else False
+    },values))
+    conn.commit()
+    conn.close()
+    return values
 
 # 判断数据是否已经存在
 # 并获取对应的uuid
@@ -41,7 +73,7 @@ def check_data_if_exists(cells):
     # 获取所有的val值
     # 值获取需要进行关联的name的val
     # print(links)
-    valls = list(map(lambda x: x['val'], filter(lambda y: y['name'] in links, cells)))
+    valls = list(map(lambda x: x['val'], cells))
     conn = sqlite3.connect(db_file_name)
     cursor = conn.cursor()
     values = cursor.execute('select val,uuid from mswd where val in ( %s )' % (','.join(['?'] * len(valls)  ) ),(tuple(valls))  )
@@ -56,7 +88,6 @@ def check_data_if_exists(cells):
 
 # 读取csv文件
 def read_csv(csv_file_name, code_type='utf-8-sig'):
-    global not_links
     try:
         with open(csv_file_name, encoding=code_type) as f:
             reader = csv.reader(f)
@@ -85,10 +116,10 @@ def read_csv(csv_file_name, code_type='utf-8-sig'):
             for row in reader:
                 if header_len != len(row):
                     temp_no_data_len_errs.append(row)
-                for r in row:
-                    if len(r) == 0:
-                        temp_no_data_val_errs.append(row)
-                        break
+                # for r in row:
+                #     if len(r) == 0:
+                #         temp_no_data_val_errs.append(row)
+                #         break
                 temp_datas.append(row)
 
             # 检测到一下数据存在问题
@@ -96,10 +127,12 @@ def read_csv(csv_file_name, code_type='utf-8-sig'):
                 print('以下行单元格数量和首行不同，请检查！')
                 for temp_no_data_len_err in temp_no_data_len_errs:
                     print(temp_no_data_len_err)
-            if len(temp_no_data_val_errs) > 0:
-                print('以下行单元格内存在空值，请检查！')
-                for temp_no_data_val_err in temp_no_data_val_errs:
-                    print(temp_no_data_val_err)
+                exit(0)
+            # if len(temp_no_data_val_errs) > 0:
+            #     print('以下行单元格内存在空值，请检查！')
+            #     for temp_no_data_val_err in temp_no_data_val_errs:
+            #         print(temp_no_data_val_err)
+            #         exit(0)
             if len(temp_no_data_len_errs) > 0 or len(temp_no_data_val_errs) > 0 :
                 exit(0)
 
@@ -152,10 +185,10 @@ def read_txt(txt_file_name, code_type='utf-8-sig') :
                 row = line.strip().split(',')
                 if header_len != len(row):
                     temp_no_data_len_errs.append(row)
-                for r in row:
-                    if len(r) == 0:
-                        temp_no_data_val_errs.append(row)
-                        break
+                # for r in row:
+                #     if len(r) == 0:
+                #         temp_no_data_val_errs.append(row)
+                #         break
                 temp_datas.append(row)
 
             # 检测到一下数据存在问题
@@ -163,10 +196,12 @@ def read_txt(txt_file_name, code_type='utf-8-sig') :
                 print('以下行单元格数量和首行不同，请检查！')
                 for temp_no_data_len_err in temp_no_data_len_errs:
                     print(temp_no_data_len_err)
-            if len(temp_no_data_val_errs) > 0:
-                print('以下行单元格内存在空值，请检查！')
-                for temp_no_data_val_err in temp_no_data_val_errs:
-                    print(temp_no_data_val_err)
+                exit(0)
+            # if len(temp_no_data_val_errs) > 0:
+            #     print('以下行单元格内存在空值，请检查！')
+            #     for temp_no_data_val_err in temp_no_data_val_errs:
+            #         print(temp_no_data_val_err)
+            #     exit(0)
             if len(temp_no_data_len_errs) > 0 or len(temp_no_data_val_errs) > 0 :
                 exit(0)
 
@@ -199,44 +234,59 @@ def save_data(cells,project):
         ts = int(datetime.datetime.now().timestamp())
 
         # 查看当前条数据是否已有数据存在库中
-        values = check_data_if_exists(cells)
+        values = check_data_link_if_exists(cells)
         # 如果查询到的数据的长度 和 当前待插入的数据的长度 相同，则表示数据已经存在，不需要再进行插入
         if len(values) == len(cells):
             return
 
-        # 存放已经存在的数据的集合
-        temp_db_vals = list(map(lambda x: x['val'], values))
+        exist_db_vals = list(map(lambda x: x['val'], values))
+
+        # 如果每一个值都存在则说明当前行数据已经存在
+        if len(list(filter(lambda x: x['val'] not in exist_db_vals,cells)))  == 0 :
+            return
+        
+
+        # 数据库中进行关联的数据
+        link_db_vals = list(map(lambda x: x['val'], filter(lambda y: y['link'] == True, values)))
         # 数据待插入的uid集合
         new_uids = []
-        # 如果长度为0 则表示都为新数据
-        if len(values) == 0 :
+        # 如果需要进行关联的数据的长度为0 则表示都为新数据
+        if len(list(filter(lambda y: y['link'] == True, values))) == 0 :
             uid = str(uuid.uuid4()).replace("-","")
             new_uids.append(uid)
-        # 否侧表示当前已有数据存在数据库中，获取这些数据中的uid，并进行去重
+        # 否侧表示当前需要关联的数据已有数据存在数据库中，获取这些数据中的uid，并进行去重
         # 只有设定的name才能进行关联
         else:            
-            new_uids = list(set(map(lambda x:x['uuid'],values)))
+            new_uids = list(set(map(lambda x:x['uuid'],filter(lambda y: y['link'] == True, values))))
         
+        
+
+        link_uids = list(set(map(lambda x:x['uuid'],filter(lambda y: y['link'] == True, values))))
+
         print(cells)
         conn = sqlite3.connect(db_file_name)
         cursor = conn.cursor()
         # 新数据每个关联的不同的uid都需要进行添加
         for new_uid in new_uids:
-            # 对数据进行到库中
+            # 对数据加入到库中
             for cell in cells:
                 # 如果当前值不存在，则进行插入
-                if cell['val'] not in temp_db_vals:
+                # 新数据如果不存在则根据关联的uuid进行插入
+                # 如果数据已经存在，但当前数据条中没有关联数据也插入
+                if cell['val'] not in exist_db_vals or new_uid not in link_uids:
                     cursor.execute('INSERT INTO mswd (name,val,uuid,create_time,project) VALUES (?,?,?,?,?)',
                         (cell['name'],cell['val'], new_uid,ts,project))
                 # 如果存在则在原来的数据的关联字段上面加上新的项目名称
                 else:
-
+                    # print("----------------------------")
+                    # print((new_uid, cell['val'],project,new_uid, cell['val'],'%'+project+'%'))
                     exist_other_project = cursor.execute('select id from mswd where (uuid = ? and val = ? and project = ?) or (uuid = ? and val = ? and other_project like ? )',
                         (new_uid, cell['val'],project,new_uid, cell['val'],'%'+project+'%'))
                     exist_other_project = list(map(lambda x:x[0],exist_other_project))
+                    # print(exist_other_project)
                     if len(list(exist_other_project)) == 0:
                         cursor.execute("update mswd set other_project = other_project||? where uuid = ? and val = ?",
-                                            (project + 'ddv',new_uid, cell['val']))
+                            (project + 'ddv',new_uid, cell['val']))
 
         conn.commit()
         conn.close()
@@ -304,7 +354,7 @@ def read_db():
     if len(result_values) == 0:
         print("没有查询到数据")
         exit(0)
-    print("查询到数据：")
+    # print("查询到数据：")
 
     index = 1
     for result_value in result_values:
@@ -360,6 +410,15 @@ def read_all():
     conn.commit()
     conn.close()
 
+# 
+def read_uuid_number():
+    print('read_uuid_number')
+    conn = sqlite3.connect(db_file_name)
+    cursor = conn.cursor()
+    values = cursor.execute('select count(uuid) from mswd group by uuid')
+    print(len(list(values)))
+    conn.commit()
+    conn.close()
 
 # 查询当前已有字段
 def read_col():
@@ -434,11 +493,18 @@ def export_data():
         create_file_time = time.strftime("%Y-%m-%d-%H-%M-%S")
         print("数据将写入:%s-%s.csv"%(input_names[0],create_file_time))
 
+        # 对uid进行一个去重
+        export_uuids = []
         with open('%s-%s.csv'%(input_names[0],str(create_file_time)), 'w', encoding='utf-8-sig', newline='') as f:
             writer = csv.writer(f)
             writer.writerow(input_names)
             print(input_names)
             for val in vals:
+                # print(val)
+                if val[2] not in export_uuids:
+                    export_uuids.append(val[2])
+                else:
+                    continue
                 datas = []
                 data = {}
                 uuid = val[2]
@@ -522,7 +588,7 @@ def export_project():
                     d = copy.deepcopy(datas[uuid][0])
                     d[name] = val
                     datas[uuid].append(d)
-
+    print(datas)
     with open('%s-%s.csv'%(input_project,str(create_file_time)), 'w', encoding='utf-8-sig', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(project_names)
@@ -572,8 +638,9 @@ if __name__ == "__main__":
 4、查看当前已有项目名
 5、指定字段名称导出数据
 6、指定项目名称导出数据
+7、查询库中数据条数量
 """)
-    if option not in ['1','2','3','4','5','6']:
+    if option not in ['1','2','3','4','5','6','7']:
         # read_all()
         print("请进行正确的选择！")
         exit(0)
@@ -593,3 +660,5 @@ if __name__ == "__main__":
         export_data()
     elif option == '6':
         export_project()
+    elif option == '7':
+        read_uuid_number()
