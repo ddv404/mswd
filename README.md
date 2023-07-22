@@ -84,3 +84,5 @@ csv文件
 	1、当前导入的数据文件格式支持.txt和.csv
 	2、文件的首行需要设定字段定义（当前列的名称）
 	
+
+备注：（经过实战mswd工具在原文件有几十G，处理到db后会有上百G的文件大小，且在进行模糊查询的时候性能很低。因而诞生了https://github.com/ddv404/file_content_saerch/tree/main。）
